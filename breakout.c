@@ -1,9 +1,12 @@
-//
-// breakout.c
-//
-// Computer Science 50
-// Problem Set 4
-//
+/***********************************************************************************************************************
+********************************************** BREAKOUT ****************************************************************
+* **********************************************************************************************************************
+* This game implements a classic paddle game called breakout.
+* Further additions to this game include making the game harder as more bricks are broken, the ability to fire lasers,
+* scoring dependant on the location of the brick (for the ball only), and a "GODMODE", whereby the computer completes
+* the game on its own.
+* **********************************************************************************************************************
+*/
 
 // standard libraries
 #define _XOPEN_SOURCE
@@ -57,6 +60,7 @@ void updateScoreboard(GWindow window, GLabel label, int points);
 GObject detectCollision(GWindow window, GOval ball);
 GObject detectLaserCollision(GWindow window, GRect laser);
 void run(GWindow window, GRect paddle, GOval ball, GLabel label, GRect laser, bool god_mode);
+void endGame(GWindow window, int points, int bricks);
 
 int main(int argc, string argv[])
 {   
@@ -177,7 +181,6 @@ GRect initPaddle(GWindow window)
     //set the colour of the paddle to black and then fill it.
     setColor(paddle, "black");
     setFilled(paddle, true);
-    
     add(window, paddle);
     
     return paddle;
@@ -209,6 +212,30 @@ void updateScoreboard(GWindow window, GLabel label, int points)
     double x = (getWidth(window) - getWidth(label)) / 2;
     double y = (getHeight(window) - getHeight(label)) / 2;
     setLocation(label, x, y);
+}
+
+/**
+* Function that determines the label to be displayed at the end of the game
+*/
+void endGame(GWindow window, int lives, int bricks)
+{
+    GLabel end_label = newGLabel("");
+    setFont(end_label, "SansSerif-36");
+    
+    // If the user has lost all their lives the game is lost
+    if(lives == 0 && bricks > 0)
+    {
+        setLabel(end_label, "YOU LOSE!!!");
+        setLocation(end_label, 95, 400);
+        add(window, end_label);    
+    }
+    // If the user has at least one life left and there are no bricks, the user wins.
+    else if(lives > 0 && bricks == 0)
+    {
+        setLabel(end_label, "YOU WIN!!!");
+        setLocation(end_label, 100, 400);
+        add(window, end_label);    
+    }
 }
 
 /**
@@ -277,6 +304,7 @@ GObject detectLaserCollision(GWindow window, GRect laser)
    return NULL;   
 }
 
+
 /**
 * This is the main execution of the game.
 * This function starts by declaring variables needed to determine the state of play.
@@ -302,6 +330,10 @@ void run(GWindow window, GRect paddle, GOval ball, GLabel label, GRect laser, bo
     //initial velocity of the ball
     double velocity = 0.05;
     double vertical_velocity = 0.05;
+    
+    //initial value for changing the size of the paddle
+    int change = 6;
+    bool paddle_changed = false;
     
     //set the label at the begginning of the game
     updateScoreboard(window, label, points);
@@ -405,9 +437,19 @@ void run(GWindow window, GRect paddle, GOval ball, GLabel label, GRect laser, bo
         }
         else
         {
+            int location = getY(object);
+            
             //bounce the ball off of the paddle
             if(object == paddle)
-                vertical_velocity = -vertical_velocity;
+            {
+                //ensures the ball only moves upwards on hitting the paddle **bug fix**
+                //if the vertical_velocity is a positive number it is moving downwards,
+                //and so ensure it only bounces upwards from the paddle.
+                if(vertical_velocity > 0) 
+                {
+                    vertical_velocity = -vertical_velocity;
+                }
+            }
             
             //if the object is the laser, the user loses a life and the game resets.
             else if(object == laser)
@@ -428,14 +470,62 @@ void run(GWindow window, GRect paddle, GOval ball, GLabel label, GRect laser, bo
                 removeGWindow(window, object);
                 
                 bricks--;
-                points++;
+                
+                //if the ball strikes a brick located in the last 2 rows, points awarded are doubled
+                if(location <= 50)
+                    points += 2;
+                else
+                    points++;
                 
                 updateScoreboard(window, label, points); //update the scoreboard
                 
                 vertical_velocity = -vertical_velocity;
             }
+            
+            /**
+            * Make the game harder as it progresses by
+            * shrinking the paddle and increasing the speed of the ball.
+            */
+            //Every tenth brick shrink the width of the paddle by 6, increase velocity by 0.02 (on both axis).
+            if(bricks % 10 == 0 && bricks != 50)
+            {
+                if(!paddle_changed)
+                {
+                    //change the size of the paddle
+                    setSize(paddle, PADDLE_WIDTH - change, PADDLE_HEIGHT);
+                    
+                    //increase how much the paddle gets smaller
+                    change += 6;
+                    
+                    //set paddle changed to true to ensure this action is not repeated inbetween breaking bricks
+                    paddle_changed = true;
+                    
+                    //increase speed, varies depending on which direction the ball is travelling.
+                    if(vertical_velocity < 0)   
+                        vertical_velocity -= 0.02;
+                    else
+                        vertical_velocity += 0.02;
+                    
+                    if(velocity < 0)
+                        velocity -= 0.02;
+                    else
+                        velocity += 0.02;
+                }
+            }
+            
+            //This statement ensures the paddle can be shrinked further after the first execution of setSize
+            //ie, when bricks % 10 == 0 paddle_changed = true, it will stay true until this statement sets it 
+            //back to false, allowing the second if statement above to be accessed.
+            if(bricks % 10 != 0)
+            {
+                paddle_changed = false;
+            }
+             
        }//end if/else of ball's movement
-        
            
     }//end while loop
-}
+    
+    endGame(window, points, bricks);
+    
+}//End function run().
+
