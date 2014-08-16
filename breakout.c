@@ -8,6 +8,13 @@
 * **********************************************************************************************************************
 */
 
+//
+// breakout.c
+//
+// Computer Science 50
+// Problem Set 4
+//
+
 // standard libraries
 #define _XOPEN_SOURCE
 #include <stdio.h>
@@ -429,6 +436,7 @@ void run(GWindow window, GRect paddle, GOval ball, GLabel label, GRect laser, bo
             //if the ball has moved passed the paddle reset the ball and wait for the user to click before continuing
             else if(getY(ball) + getHeight(ball) >= getHeight(window))
             {
+                vertical_velocity = -vertical_velocity;
                 setLocation(ball, 200, 300);
                
                 lives--; //user loses a life
@@ -522,10 +530,10 @@ void run(GWindow window, GRect paddle, GOval ball, GLabel label, GRect laser, bo
             }
              
        }//end if/else of ball's movement
-           
+       
     }//end while loop
-    
-    endGame(window, points, bricks);
+  
+    endGame(window, lives, bricks);
     
 }//End function run().
 
